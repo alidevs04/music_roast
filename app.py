@@ -4,6 +4,7 @@ import base64
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 from huggingface_hub import InferenceClient # <--- New Library
+import re
 
 app = Flask(__name__)
 
@@ -34,7 +35,7 @@ def get_ai_roast(image_path):
                     },
                     {
                         "type": "text",
-                        "text": "You are a mean music critic. Analyze this playlist. Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag. Do NOT use markdown code blocks."
+                        "text": "You are a mean music critic. Analyze this playlist. Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag. Do NOT use markdown. Just the raw JSON."
                     }
                 ]
             }
@@ -45,12 +46,26 @@ def get_ai_roast(image_path):
             model=repo_id, 
             messages=messages, 
             max_tokens=500,
-            temperature=0.7,
-            response_format={"type": "json_object"} # Forces JSON
+            temperature=0.7
         )
 
-        response_text = completion.choices[0].message.content
-        return json.loads(response_text)
+        raw_text = completion.choices[0].message.content
+        print(f"DEBUG RAW AI: {raw_text}") # Check your Render logs for this line!
+
+        # --- THE FIX: CLEAN THE TEXT ---
+        # 1. Remove Markdown code blocks (```json ... ```)
+        clean_text = re.sub(r'```json\s*', '', raw_text)
+        clean_text = re.sub(r'```', '', clean_text)
+        
+        # 2. Find the JSON object (starts with { and ends with })
+        match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+        
+        if match:
+            json_str = match.group(0)
+            return json.loads(json_str)
+        else:
+            print("ERROR: Could not find JSON in response.")
+            return None
 
     except Exception as e:
         print(f"HUGGING FACE ERROR: {e}")
