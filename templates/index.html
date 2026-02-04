@@ -188,59 +188,60 @@
         // 3. Share Functionality
         // 3. Share Functionality (FIXED)
 async function shareResult() {
-            const element = document.getElementById('captureArea');
             const button = document.querySelector('button[onclick="shareResult()"]');
-            const title = document.getElementById('roastTitle');
-            
             const originalText = button.innerHTML;
+            
+            // Visual Feedback
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
             button.disabled = true;
 
-            // 1. COPY LINK (Do this first so it's fast)
             try {
-                await navigator.clipboard.writeText("https://roastmymusic.me");
-            } catch (err) {
-                console.log("Clipboard failed");
-            }
+                // 1. Copy Link (Silent)
+                try { await navigator.clipboard.writeText("https://roastmymusic.me"); } catch (e) {}
 
-            // 2. PREPARE FOR SNAPSHOT (Remove things that crash html2canvas)
-            // html2canvas crashes on "backdrop-filter" and "gradients"
-            const originalBackground = element.style.background;
-            const originalFilter = element.style.backdropFilter;
-            
-            // Force a simple, solid look for the camera
-            element.classList.remove('glass-card'); // Remove blur
-            element.style.background = "#0a0a0a";   // Solid dark background
-            element.style.backdropFilter = "none";
-            element.style.borderRadius = "20px";    // Keep corners rounded
-            
-            // Fix Text Gradient
-            title.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-            title.style.color = '#fb923c'; 
+                // 2. THE CLONE STRATEGY
+                // We create a "stunt double" of the card to take the photo
+                const originalElement = document.getElementById('captureArea');
+                const clone = originalElement.cloneNode(true);
 
-            try {
-                // 3. CAPTURE
-                const canvas = await html2canvas(element, {
+                // 3. Style the Clone (The "Safe" Look)
+                // We force specific styles on the clone to guarantee it doesn't crash
+                clone.style.position = 'absolute';
+                clone.style.left = '-9999px'; // Move it off-screen so user doesn't see it
+                clone.style.top = '0';
+                clone.style.width = originalElement.offsetWidth + 'px'; // Match original width
+                clone.style.background = '#0a0a0a'; // SOLID black (No transparent glass)
+                clone.style.backdropFilter = 'none'; // DISABLE Blur (The #1 crasher)
+                clone.style.boxShadow = 'none';
+                clone.style.borderRadius = '0px'; 
+                clone.style.margin = '0';
+
+                // Fix the Gradient Text inside the Clone
+                const cloneTitle = clone.querySelector('#roastTitle');
+                if (cloneTitle) {
+                    cloneTitle.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
+                    cloneTitle.style.color = '#fb923c'; // Solid Orange
+                }
+
+                // 4. Add Clone to the Page (Required for screenshot)
+                document.body.appendChild(clone);
+
+                // 5. Take the Photo of the CLONE
+                const canvas = await html2canvas(clone, {
                     backgroundColor: "#0a0a0a",
-                    scale: 2, // Lower scale (2 vs 3) makes it faster for iPhones
+                    scale: 2,
                     useCORS: true,
-                    logging: false,
-                    removeContainer: true
+                    logging: false
                 });
 
-                // 4. RESTORE LOOK (Put the fancy effects back)
-                element.classList.add('glass-card');
-                element.style.background = originalBackground;
-                element.style.backdropFilter = originalFilter;
-                title.style.color = '';
-                title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
+                // 6. Delete the Clone (Clean up crime scene)
+                document.body.removeChild(clone);
 
+                // 7. Share Logic
                 canvas.toBlob(async (blob) => {
-                    if (!blob) throw new Error("Image generation failed");
-                    
+                    if (!blob) throw new Error("Image failed");
                     const file = new File([blob], "music-roast.png", { type: "image/png" });
 
-                    // 5. SHARE
                     if (navigator.share) {
                         try {
                             await navigator.share({
@@ -249,35 +250,31 @@ async function shareResult() {
                                 text: 'Check my music roast! Link in bio.'
                             });
                         } catch (err) {
-                            console.log("Share cancelled or timed out");
-                            // Fallback if Share fails (common on Android)
-                            downloadImage(canvas); 
+                            console.log("Share cancelled");
+                            downloadImage(canvas); // Fallback
                         }
                     } else {
                         downloadImage(canvas);
                     }
-                    
+                    // Reset Button
                     button.innerHTML = originalText;
                     button.disabled = false;
                 }, 'image/png');
 
             } catch (err) {
-                console.error("Screenshot failed:", err);
-                // Restore styles if it crashes
-                element.classList.add('glass-card');
-                title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-                button.innerHTML = "Error. Try again.";
+                console.error("Screenshot error:", err);
+                alert("Screenshot failed. Please screenshot manually!");
+                button.innerHTML = originalText;
                 button.disabled = false;
             }
         }
 
-        // Helper function for Desktop users
         function downloadImage(canvas) {
             const link = document.createElement('a');
             link.download = 'my-music-roast.png';
             link.href = canvas.toDataURL();
             link.click();
-            alert("Image saved! You can upload it to your story manually.");
+            alert("Image saved! You can post it manually.");
         }
     </script>
 </body>
