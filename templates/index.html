@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
 
-    <!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-KRM6G9Z4');</script>
-<!-- End Google Tag Manager -->
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L1VWGHF6Y2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-L1VWGHF6Y2');
+</script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,11 +60,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]">
-
-    <!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KRM6G9Z4"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
 
     <div class="text-center mb-6">
         <h1 class="text-4xl font-black mb-2 tracking-tighter">ROAST MY <span class="gradient-text">MUSIC</span></h1>
@@ -191,66 +188,97 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         // 3. Share Functionality
         // 3. Share Functionality (FIXED)
 async function shareResult() {
-    const element = document.getElementById('captureArea');
-    const button = document.querySelector('button[onclick="shareResult()"]');
-    const title = document.getElementById('roastTitle'); // The gradient text
-    
-    // Visual feedback
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Image...';
+            const element = document.getElementById('captureArea');
+            const button = document.querySelector('button[onclick="shareResult()"]');
+            const title = document.getElementById('roastTitle');
+            
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            button.disabled = true;
 
-    // 1. TEMPORARY FIX: Remove gradient, make text solid orange
-    // html2canvas fails with "bg-clip:text", so we force a solid color for the picture.
-    title.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-    title.style.color = '#fb923c'; // Solid Orange color
-
-    try {
-        // Capture the card
-        const canvas = await html2canvas(element, {
-            backgroundColor: "#0a0a0a",
-            scale: 3, // High Quality
-            useCORS: true, // Helps with loading fonts/icons
-            logging: false,
-            // Force the canvas to capture everything even if scrolled
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
-        });
-
-        // 2. RESTORE: Put the gradient back immediately
-        title.style.color = '';
-        title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-
-        canvas.toBlob(async (blob) => {
-            const file = new File([blob], "music-roast.png", { type: "image/png" });
-
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'My Music Roast',
-                        text: 'I got roasted by AI. Try it yourself!'
-                    });
-                } catch (err) {
-                    console.log("Share cancelled");
-                }
-            } else {
-                const link = document.createElement('a');
-                link.download = 'my-music-roast.png';
-                link.href = canvas.toDataURL();
-                link.click();
-                alert("Image saved! Post it on your story.");
+            // 1. COPY LINK (Do this first so it's fast)
+            try {
+                await navigator.clipboard.writeText("https://roastmymusic.me");
+            } catch (err) {
+                console.log("Clipboard failed");
             }
-            button.innerHTML = originalText;
-        });
 
-    } catch (err) {
-        console.error("Screenshot failed:", err);
-        // Ensure we restore the gradient even if it crashes
-        title.style.color = '';
-        title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-        button.innerHTML = "Error. Try screenshotting manually.";
-    }
-}
+            // 2. PREPARE FOR SNAPSHOT (Remove things that crash html2canvas)
+            // html2canvas crashes on "backdrop-filter" and "gradients"
+            const originalBackground = element.style.background;
+            const originalFilter = element.style.backdropFilter;
+            
+            // Force a simple, solid look for the camera
+            element.classList.remove('glass-card'); // Remove blur
+            element.style.background = "#0a0a0a";   // Solid dark background
+            element.style.backdropFilter = "none";
+            element.style.borderRadius = "20px";    // Keep corners rounded
+            
+            // Fix Text Gradient
+            title.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
+            title.style.color = '#fb923c'; 
+
+            try {
+                // 3. CAPTURE
+                const canvas = await html2canvas(element, {
+                    backgroundColor: "#0a0a0a",
+                    scale: 2, // Lower scale (2 vs 3) makes it faster for iPhones
+                    useCORS: true,
+                    logging: false,
+                    removeContainer: true
+                });
+
+                // 4. RESTORE LOOK (Put the fancy effects back)
+                element.classList.add('glass-card');
+                element.style.background = originalBackground;
+                element.style.backdropFilter = originalFilter;
+                title.style.color = '';
+                title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) throw new Error("Image generation failed");
+                    
+                    const file = new File([blob], "music-roast.png", { type: "image/png" });
+
+                    // 5. SHARE
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: 'My Music Roast',
+                                text: 'Check my music roast! Link in bio.'
+                            });
+                        } catch (err) {
+                            console.log("Share cancelled or timed out");
+                            // Fallback if Share fails (common on Android)
+                            downloadImage(canvas); 
+                        }
+                    } else {
+                        downloadImage(canvas);
+                    }
+                    
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 'image/png');
+
+            } catch (err) {
+                console.error("Screenshot failed:", err);
+                // Restore styles if it crashes
+                element.classList.add('glass-card');
+                title.classList.add('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
+                button.innerHTML = "Error. Try again.";
+                button.disabled = false;
+            }
+        }
+
+        // Helper function for Desktop users
+        function downloadImage(canvas) {
+            const link = document.createElement('a');
+            link.download = 'my-music-roast.png';
+            link.href = canvas.toDataURL();
+            link.click();
+            alert("Image saved! You can upload it to your story manually.");
+        }
     </script>
 </body>
 </html>
