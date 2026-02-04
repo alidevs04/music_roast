@@ -38,7 +38,7 @@ def get_ai_roast(image_path):
                         "type": "text",
                         # --- UPDATED PROMPT ---
                         "text": """
-                        You are a mean music critic. Analyze this playlist. 
+                        You are a mean music critic. Analyze this playlist and roast the user of the playlist. 
                         Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag.
                         
                         CRITICAL RULES:
@@ -121,5 +121,6 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
