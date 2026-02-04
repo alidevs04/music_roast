@@ -25,6 +25,7 @@ def get_ai_roast(image_path):
     try:
         base64_image = encode_image(image_path)
         
+        # 1. THE PROMPT
         messages = [
             {
                 "role": "user",
@@ -35,15 +36,14 @@ def get_ai_roast(image_path):
                     },
                     {
                         "type": "text",
-                        # --- NEW PROMPT: NO JSON, JUST PLAIN TEXT ---
                         "text": """
-                        You are a mean music critic. Analyze this playlist and roast the user of this playlist.
+                        You are a mean music critic. Analyze this playlist and roast the user of this playlist, be insightful and harsh.
                         Output exactly 4 lines. Do not use markdown.
                         
                         Format:
-                        SCORE: [Rating out of 10]
+                        SCORE: [/10]
                         TITLE: [Mean 3-word title]
-                        ROAST: [A ruthless 2-sentence roast]
+                        ROAST: [A ruthless 5 sentence roast]
                         RED_FLAG: [One specific red flag]
                         """
                     }
@@ -51,6 +51,7 @@ def get_ai_roast(image_path):
             }
         ]
 
+        # 2. CALL THE API
         completion = client.chat.completions.create(
             model=repo_id, 
             messages=messages, 
@@ -61,8 +62,8 @@ def get_ai_roast(image_path):
         raw_text = completion.choices[0].message.content
         print(f"DEBUG RAW AI: {raw_text}") 
 
-        # --- MANUAL PARSING (CRASH PROOF) ---
-        # We create a default object in case parsing fails completely
+        # 3. ROBUST PARSING (Regex Method)
+        # Default values in case the AI fails completely
         result = {
             "score": "0/10",
             "title": "Taste Not Found",
@@ -70,19 +71,30 @@ def get_ai_roast(image_path):
             "red_flag": "Unreadable"
         }
 
-        # We go line by line and look for our keywords
-        lines = raw_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.upper().startswith("SCORE:"):
-                result["score"] = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("TITLE:"):
-                result["title"] = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("ROAST:"):
-                result["roast"] = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("RED_FLAG:"):
-                result["red_flag"] = line.split(":", 1)[1].strip()
-                
+        # Regex Explainer:
+        # (?i)      -> Ignore Case (treats 'score' and 'SCORE' the same)
+        # \** -> Allow optional bold asterisks (**)
+        # score     -> The word we are looking for
+        # \** -> Allow optional closing bold asterisks
+        # \s*[:\-]\s* -> Allow a colon (:), a dash (-), and any spaces
+        # (.*)      -> Capture everything else on the line
+        
+        score_match = re.search(r'(?i)^\s*[\*\-]*\s*score\s*[\*\-]*\s*[:\-]\s*(.*)', raw_text, re.MULTILINE)
+        if score_match: result["score"] = score_match.group(1).strip()
+
+        title_match = re.search(r'(?i)^\s*[\*\-]*\s*title\s*[\*\-]*\s*[:\-]\s*(.*)', raw_text, re.MULTILINE)
+        if title_match: result["title"] = title_match.group(1).strip()
+
+        roast_match = re.search(r'(?i)^\s*[\*\-]*\s*roast\s*[\*\-]*\s*[:\-]\s*(.*)', raw_text, re.MULTILINE)
+        if roast_match: result["roast"] = roast_match.group(1).strip()
+
+        flag_match = re.search(r'(?i)^\s*[\*\-]*\s*red_flag\s*[\*\-]*\s*[:\-]\s*(.*)', raw_text, re.MULTILINE)
+        # Fallback: Sometimes AI writes "Red Flag:" with a space
+        if not flag_match:
+             flag_match = re.search(r'(?i)^\s*[\*\-]*\s*red flag\s*[\*\-]*\s*[:\-]\s*(.*)', raw_text, re.MULTILINE)
+        
+        if flag_match: result["red_flag"] = flag_match.group(1).strip()
+
         return result
 
     except Exception as e:
@@ -127,6 +139,7 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
