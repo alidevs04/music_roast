@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 
-    <!-- Google tag (gtag.js) -->
+        <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L1VWGHF6Y2"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -15,10 +15,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Judge My Music</title>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" />
 
     <style>
         body { 
@@ -27,7 +27,7 @@
             font-family: 'Inter', sans-serif; 
         }
         
-        /* The Glass Effect */
+        /* Glass Effect */
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(16px);
@@ -41,22 +41,16 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* Music Wave Animation for Loader */
-        .bar {
-            width: 6px;
-            background: #1DB954;
-            animation: bounce 1s infinite ease-in-out;
-            border-radius: 999px;
-        }
+        /* Loader Animation */
+        .bar { width: 6px; background: #1DB954; animation: bounce 1s infinite ease-in-out; border-radius: 999px; }
         .bar:nth-child(2) { animation-delay: 0.1s; }
         .bar:nth-child(3) { animation-delay: 0.2s; }
         .bar:nth-child(4) { animation-delay: 0.3s; }
         .bar:nth-child(5) { animation-delay: 0.4s; }
 
-        @keyframes bounce {
-            0%, 100% { height: 10px; }
-            50% { height: 40px; }
-        }
+        @keyframes bounce { 0%, 100% { height: 10px; } 50% { height: 40px; } }
+        .modal-fade { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]">
@@ -68,17 +62,27 @@
     {% if not data %}
     <div id="uploadCard" class="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center">
         <form action="/" method="post" enctype="multipart/form-data">
-            <label class="block border-2 border-dashed border-gray-700 rounded-2xl p-10 mb-6 hover:border-green-500 transition cursor-pointer bg-white/5 relative group">
+            <label class="block border-2 border-dashed border-gray-700 rounded-2xl p-8 mb-6 hover:border-green-500 transition cursor-pointer bg-white/5 relative group">
                 <input type="file" name="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="fileSelected(this)" required>
-                <div class="group-hover:scale-110 transition duration-300">
-                    <i class="fas fa-image text-4xl text-gray-400 mb-3"></i>
-                    <p id="previewText" class="text-gray-400 font-bold">Tap to Upload Screenshot</p>
-                    <p class="text-xs text-gray-500 mt-2">Spotify, Apple Music, or YouTube</p>
+                
+                <div class="group-hover:scale-105 transition duration-300">
+                    <i id="uploadIcon" class="fas fa-mobile-alt text-5xl text-gray-400 mb-4 drop-shadow-lg transition-colors"></i>
+                    
+                    <h3 class="text-2xl font-black text-white mb-2">UPLOAD SCREENSHOT</h3>
+                    
+                    <p id="previewText" class="text-gray-400 text-sm mb-4 leading-relaxed">
+                        of your <span class="text-green-400 font-bold">"Top Songs"</span> list<br>or <span class="text-green-400 font-bold">"On Repeat"</span> playlist.
+                    </p>
+                    
+                    <button type="button" onclick="toggleModal(true)" class="z-10 relative text-xs text-gray-500 underline hover:text-white transition">
+                        <i class="far fa-image"></i> See correct screenshot
+                    </button>
                 </div>
             </label>
             
-            <button type="submit" onclick="startRoast()" class="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-xl text-lg shadow-lg shadow-green-500/20 transition transform active:scale-95">
-                🔥 ROAST ME
+            <button type="submit" id="roastBtn" onclick="startRoast()" disabled
+                class="w-full bg-gray-800 text-gray-500 font-bold py-4 rounded-xl text-lg transition duration-300 cursor-not-allowed">
+                Select Screenshot...
             </button>
         </form>
     </div>
@@ -91,16 +95,13 @@
             <div class="bar h-10"></div>
             <div class="bar h-5"></div>
         </div>
-        
-        <h2 id="loaderText" class="text-2xl font-bold text-white mb-2">Analyzing your pixels...</h2>
+        <h2 id="loaderText" class="text-2xl font-bold text-white mb-2">Analyzing your screenshot...</h2>
         <p class="text-gray-400 text-sm">Do not close this tab.</p>
     </div>
     {% endif %}
 
     {% if data %}
-    
     <div id="captureArea" class="w-full max-w-md glass-card rounded-3xl p-0 shadow-2xl border-t-8 border-red-500 relative overflow-hidden bg-[#0a0a0a]">
-        
         <div class="p-8">
             <div class="flex justify-between items-start mb-6">
                 <div class="flex items-center gap-2">
@@ -119,9 +120,7 @@
             </div>
 
             <div class="bg-white/5 rounded-2xl p-6 mb-6 border border-white/10">
-                <p class="text-gray-200 font-medium leading-relaxed italic">
-                    "{{ data.roast }}"
-                </p>
+                <p class="text-gray-200 font-medium leading-relaxed italic">"{{ data.roast }}"</p>
             </div>
 
             <div class="flex gap-4 items-center">
@@ -135,36 +134,80 @@
             </div>
             
             <div class="mt-8 pt-6 border-t border-gray-800 text-center opacity-40">
-                <p class="text-[10px] tracking-[0.2em] uppercase">Generated by RoastMyMusic</p>
+                <p class="text-[10px] tracking-[0.2em] uppercase">Generated by RoastMyMusic.me</p>
             </div>
         </div>
     </div>
 
     <div class="w-full max-w-md mt-6 flex flex-col gap-3">
-        
         <button onclick="shareResult()" class="w-full bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition shadow-lg shadow-white/10">
             <i class="fab fa-instagram text-xl"></i> Share to Story
         </button>
-
-        <a href="https://www.buymeacoffee.com/aliadeel" target="_blank" class="w-full bg-[#FFDD00] text-black font-black py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#FFEA00] transition shadow-lg shadow-yellow-500/20 transform hover:-translate-y-1">
+        <a href="https://www.buymeacoffee.com/yourname" target="_blank" class="w-full bg-[#FFDD00] text-black font-black py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#FFEA00] transition shadow-lg shadow-yellow-500/20 transform hover:-translate-y-1">
             <svg class="h-5 w-5" viewBox="0 0 512 512" fill="none"><path d="M399 512H49C22.2 512 0 489.8 0 463V49C0 22.2 22.2 0 49 0H399C425.8 0 448 22.2 448 49V463C448 489.8 425.8 512 399 512Z" fill="#FFDD00"/><path d="M495.6 157.1C479.2 157.1 465.3 166.5 458.3 179.9C456.9 164 443.5 151.7 427 151.7H369V64H129V357H192.8C201.2 381.1 224.2 398.7 251 398.7H315C341.8 398.7 364.8 381.1 373.2 357H427C444.6 357 459 342.6 459 325V235C459 231.6 459.6 228.3 460.8 225.2C465.4 237.2 476.9 245.8 490.6 245.8C505.8 245.8 518 233.6 518 218.4V184.5C518 169.3 505.8 157.1 490.6 157.1H495.6ZM427 325H377V183.7H427V325ZM490.6 213.8H486.6C484.4 213.8 482.6 212 482.6 209.8V189.1C482.6 186.9 484.4 185.1 486.6 185.1H490.6C492.8 185.1 494.6 186.9 494.6 189.1V209.8C494.6 212 492.8 213.8 490.6 213.8Z" fill="black"/></svg>
             Buy me a coffee
         </a>
-        
         <a href="/" class="text-gray-500 text-sm text-center mt-2 hover:text-white">Roast another</a>
     </div>
     {% endif %}
 
+    <div id="exampleModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onclick="toggleModal(false)">
+        <div class="bg-[#121212] border border-gray-700 w-full max-w-sm rounded-2xl p-6 shadow-2xl modal-fade" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white">Take a Screenshot</h3>
+                <button onclick="toggleModal(false)" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex gap-4 mb-6">
+                <div class="w-16 h-24 bg-gray-800 rounded-lg flex flex-col gap-1 p-2 border-2 border-green-500 items-center justify-center opacity-80">
+                    <div class="w-full h-1 bg-gray-600 rounded"></div>
+                    <div class="w-full h-1 bg-gray-600 rounded"></div>
+                    <div class="w-full h-1 bg-gray-600 rounded"></div>
+                    <i class="fas fa-check-circle text-green-500 text-xl mt-1"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-green-400 font-bold mb-1">✅ CORRECT</p>
+                    <p class="text-sm text-gray-400">Screenshot your <b>"Top Songs"</b> list or <b>"On Repeat"</b>. We need a list of many songs.</p>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <div class="w-16 h-24 bg-gray-800 rounded-lg flex flex-col items-center justify-center border-2 border-red-500 opacity-80">
+                    <div class="w-8 h-8 bg-gray-600 rounded mb-2"></div>
+                    <i class="fas fa-times-circle text-red-500 text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-red-400 font-bold mb-1">❌ WRONG</p>
+                    <p class="text-sm text-gray-400">Do NOT screenshot the "Now Playing" screen. We can't judge one song.</p>
+                </div>
+            </div>
+
+            <button onclick="toggleModal(false)" class="w-full bg-white text-black font-bold py-3 rounded-xl mt-6">Got it</button>
+        </div>
+    </div>
+
     <script>
-        // 1. File Upload Preview
+        function toggleModal(show) {
+            const modal = document.getElementById('exampleModal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
         function fileSelected(input) {
             if (input.files && input.files[0]) {
-                document.getElementById('previewText').innerText = "Selected: " + input.files[0].name;
-                document.getElementById('previewText').classList.add("text-green-400");
+                const file = input.files[0];
+                const btn = document.getElementById('roastBtn');
+                
+                document.getElementById('previewText').innerHTML = 'Selected: <span class="text-green-400 font-bold">' + file.name + '</span>';
+                document.getElementById('uploadIcon').classList.replace('text-gray-400', 'text-white');
+
+                btn.disabled = false;
+                btn.innerText = "🔥 ROAST ME";
+                btn.classList.remove('bg-gray-800', 'text-gray-500', 'cursor-not-allowed');
+                btn.classList.add('bg-green-500', 'text-black', 'font-black', 'hover:bg-green-400', 'shadow-lg', 'shadow-green-500/20', 'cursor-pointer', 'transform', 'active:scale-95');
             }
         }
 
-        // 2. The Mean Loader
         function startRoast() {
             document.getElementById('uploadCard').classList.add('hidden');
             document.getElementById('loader').classList.remove('hidden');
@@ -185,96 +228,33 @@
             }, 1500);
         }
 
-        // 3. Share Functionality
-        // 3. Share Functionality (FIXED)
-async function shareResult() {
+        async function shareResult() {
+            const element = document.getElementById('captureArea');
             const button = document.querySelector('button[onclick="shareResult()"]');
             const originalText = button.innerHTML;
-            
-            // Visual Feedback
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Image...';
 
             try {
-                // 1. Copy Link (Silent)
-                try { await navigator.clipboard.writeText("https://roastmymusic.me"); } catch (e) {}
-
-                // 2. THE CLONE STRATEGY
-                // We create a "stunt double" of the card to take the photo
-                const originalElement = document.getElementById('captureArea');
-                const clone = originalElement.cloneNode(true);
-
-                // 3. Style the Clone (The "Safe" Look)
-                // We force specific styles on the clone to guarantee it doesn't crash
-                clone.style.position = 'absolute';
-                clone.style.left = '-9999px'; // Move it off-screen so user doesn't see it
-                clone.style.top = '0';
-                clone.style.width = originalElement.offsetWidth + 'px'; // Match original width
-                clone.style.background = '#0a0a0a'; // SOLID black (No transparent glass)
-                clone.style.backdropFilter = 'none'; // DISABLE Blur (The #1 crasher)
-                clone.style.boxShadow = 'none';
-                clone.style.borderRadius = '0px'; 
-                clone.style.margin = '0';
-
-                // Fix the Gradient Text inside the Clone
-                const cloneTitle = clone.querySelector('#roastTitle');
-                if (cloneTitle) {
-                    cloneTitle.classList.remove('text-transparent', 'bg-clip-text', 'bg-gradient-to-r');
-                    cloneTitle.style.color = '#fb923c'; // Solid Orange
-                }
-
-                // 4. Add Clone to the Page (Required for screenshot)
-                document.body.appendChild(clone);
-
-                // 5. Take the Photo of the CLONE
-                const canvas = await html2canvas(clone, {
-                    backgroundColor: "#0a0a0a",
-                    scale: 2,
-                    useCORS: true,
-                    logging: false
-                });
-
-                // 6. Delete the Clone (Clean up crime scene)
-                document.body.removeChild(clone);
-
-                // 7. Share Logic
+                const canvas = await html2canvas(element, { backgroundColor: "#0a0a0a", scale: 3, logging: false });
                 canvas.toBlob(async (blob) => {
-                    if (!blob) throw new Error("Image failed");
                     const file = new File([blob], "music-roast.png", { type: "image/png" });
-
                     if (navigator.share) {
                         try {
-                            await navigator.share({
-                                files: [file],
-                                title: 'My Music Roast',
-                                text: 'Check my music roast! Link in bio.'
-                            });
-                        } catch (err) {
-                            console.log("Share cancelled");
-                            downloadImage(canvas); // Fallback
-                        }
+                            await navigator.share({ files: [file], title: 'My Music Roast', text: 'I got roasted by AI. Try it yourself!' });
+                        } catch (err) { console.log("Cancelled"); }
                     } else {
-                        downloadImage(canvas);
+                        const link = document.createElement('a');
+                        link.download = 'my-music-roast.png';
+                        link.href = canvas.toDataURL();
+                        link.click();
+                        alert("Image saved!");
                     }
-                    // Reset Button
                     button.innerHTML = originalText;
-                    button.disabled = false;
-                }, 'image/png');
-
+                });
             } catch (err) {
-                console.error("Screenshot error:", err);
-                alert("Screenshot failed. Please screenshot manually!");
-                button.innerHTML = originalText;
-                button.disabled = false;
+                console.error(err);
+                button.innerHTML = "Error. Try manual screenshot.";
             }
-        }
-
-        function downloadImage(canvas) {
-            const link = document.createElement('a');
-            link.download = 'my-music-roast.png';
-            link.href = canvas.toDataURL();
-            link.click();
-            alert("Image saved! You can post it manually.");
         }
     </script>
 </body>
