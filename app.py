@@ -35,7 +35,16 @@ def get_ai_roast(image_path):
                     },
                     {
                         "type": "text",
-                        "text": "You are a mean music critic. Analyze this playlist. Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag. Do NOT use markdown. Just the raw JSON."
+                        # --- UPDATED PROMPT ---
+                        "text": """
+                        You are a mean music critic. Analyze this playlist. 
+                        Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag.
+                        
+                        CRITICAL RULES:
+                        1. Do NOT use markdown code blocks. Just raw JSON.
+                        2. If you mention a song title in the roast, use 'SINGLE QUOTES' (like 'Song Name'). 
+                        3. NEVER use "double quotes" inside the text values, or the JSON will break.
+                        """
                     }
                 ]
             }
@@ -50,14 +59,13 @@ def get_ai_roast(image_path):
         )
 
         raw_text = completion.choices[0].message.content
-        print(f"DEBUG RAW AI: {raw_text}") # Check your Render logs for this line!
+        print(f"DEBUG RAW AI: {raw_text}") 
 
-        # --- THE FIX: CLEAN THE TEXT ---
-        # 1. Remove Markdown code blocks (```json ... ```)
+        # --- CLEANING ---
         clean_text = re.sub(r'```json\s*', '', raw_text)
         clean_text = re.sub(r'```', '', clean_text)
         
-        # 2. Find the JSON object (starts with { and ends with })
+        # Find the JSON object
         match = re.search(r'\{.*\}', clean_text, re.DOTALL)
         
         if match:
@@ -69,7 +77,13 @@ def get_ai_roast(image_path):
 
     except Exception as e:
         print(f"HUGGING FACE ERROR: {e}")
-        return None
+        # Return a fallback result so the site doesn't crash
+        return {
+            "score": "Error",
+            "title": "JSON Error",
+            "roast": "The AI made a typo while trying to roast you. Please try again.",
+            "red_flag": "Code Issue"
+        }
 
 # 4. WEB ROUTES
 UPLOAD_FOLDER = 'uploads'
@@ -104,3 +118,4 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
