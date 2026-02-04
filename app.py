@@ -5,7 +5,7 @@ from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 from huggingface_hub import InferenceClient # <--- New Library
 import re
-import json
+
 
 app = Flask(__name__)
 
@@ -25,7 +25,6 @@ def get_ai_roast(image_path):
     try:
         base64_image = encode_image(image_path)
         
-        # Hugging Face Chat Format
         messages = [
             {
                 "role": "user",
@@ -36,22 +35,22 @@ def get_ai_roast(image_path):
                     },
                     {
                         "type": "text",
-                        # --- UPDATED PROMPT ---
+                        # --- NEW PROMPT: NO JSON, JUST PLAIN TEXT ---
                         "text": """
-                        You are a mean music critic. Analyze this playlist and roast the user of the playlist. 
-                        Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag.
+                        You are a mean music critic. Analyze this playlist and roast the user of this playlist.
+                        Output exactly 4 lines. Do not use markdown.
                         
-                        CRITICAL RULES:
-                        1. Do NOT use markdown code blocks. Just raw JSON.
-                        2. If you mention a song title in the roast, use 'SINGLE QUOTES' (like 'Song Name'). 
-                        3. NEVER use "double quotes" inside the text values, or the JSON will break.
+                        Format:
+                        SCORE: [Rating out of 10]
+                        TITLE: [Mean 3-word title]
+                        ROAST: [A ruthless 2-sentence roast]
+                        RED_FLAG: [One specific red flag]
                         """
                     }
                 ]
             }
         ]
 
-        # Call the API
         completion = client.chat.completions.create(
             model=repo_id, 
             messages=messages, 
@@ -62,30 +61,37 @@ def get_ai_roast(image_path):
         raw_text = completion.choices[0].message.content
         print(f"DEBUG RAW AI: {raw_text}") 
 
-        # --- CLEANING ---
-        clean_text = re.sub(r'```json\s*', '', raw_text)
-        clean_text = re.sub(r'```', '', clean_text)
+        # --- MANUAL PARSING (CRASH PROOF) ---
+        # We create a default object in case parsing fails completely
+        result = {
+            "score": "0/10",
+            "title": "Taste Not Found",
+            "roast": "The AI is speechless at how bad this is.",
+            "red_flag": "Unreadable"
+        }
 
-        clean_text = re.sub(r'(?<!")(\b\w+\b)(?=\s*:)', r'"\1"', clean_text)
-        
-        # Find the JSON object
-        match = re.search(r'\{.*\}', clean_text, re.DOTALL)
-        
-        if match:
-            json_str = match.group(0)
-            return json.loads(json_str)
-        else:
-            print("ERROR: Could not find JSON in response.")
-            return None
+        # We go line by line and look for our keywords
+        lines = raw_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.upper().startswith("SCORE:"):
+                result["score"] = line.split(":", 1)[1].strip()
+            elif line.upper().startswith("TITLE:"):
+                result["title"] = line.split(":", 1)[1].strip()
+            elif line.upper().startswith("ROAST:"):
+                result["roast"] = line.split(":", 1)[1].strip()
+            elif line.upper().startswith("RED_FLAG:"):
+                result["red_flag"] = line.split(":", 1)[1].strip()
+                
+        return result
 
     except Exception as e:
         print(f"HUGGING FACE ERROR: {e}")
-        # Return a fallback result so the site doesn't crash
         return {
             "score": "Error",
-            "title": "JSON Error",
-            "roast": "The AI made a typo while trying to roast you. Please try again.",
-            "red_flag": "Code Issue"
+            "title": "Server Busy",
+            "roast": "The free AI server is overloaded. Please try again.",
+            "red_flag": "Rate Limit"
         }
 
 # 4. WEB ROUTES
@@ -121,6 +127,7 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
