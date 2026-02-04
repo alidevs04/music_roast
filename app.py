@@ -43,8 +43,8 @@ def get_ai_roast(image_path):
                         Format:
                         SCORE: [/10]
                         TITLE: [Mean 3-word title]
-                        ROAST: [A ruthless 5 sentence roast]
-                        RED_FLAG: [One specific red flag]
+                        ROAST: [A ruthless 4 sentence roast]
+                        RED_FLAG: [One specific red flag about the users personality]
                         """
                     }
                 ]
@@ -139,6 +139,7 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
