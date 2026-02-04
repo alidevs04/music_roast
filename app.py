@@ -5,6 +5,7 @@ from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 from huggingface_hub import InferenceClient # <--- New Library
 import re
+import json
 
 app = Flask(__name__)
 
@@ -64,6 +65,8 @@ def get_ai_roast(image_path):
         # --- CLEANING ---
         clean_text = re.sub(r'```json\s*', '', raw_text)
         clean_text = re.sub(r'```', '', clean_text)
+
+        clean_text = re.sub(r'(?<!")(\b\w+\b)(?=\s*:)', r'"\1"', clean_text)
         
         # Find the JSON object
         match = re.search(r'\{.*\}', clean_text, re.DOTALL)
@@ -118,4 +121,5 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
