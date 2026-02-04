@@ -1,77 +1,90 @@
 import os
 import json
-import google.generativeai as genai
-from flask import Flask, request, render_template
+import base64
+from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
-import re
+from huggingface_hub import InferenceClient # <--- New Library
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.secret_key = 'super_secret_key'  # Needed for flash messages
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# 1. SETUP HUGGING FACE CLIENT
+# Get key from Render Environment Variables
+# We use the Qwen 2.5 Vision model (Great for text/screenshots)
+repo_id = "Qwen/Qwen2.5-VL-72B-Instruct" 
+client = InferenceClient(api_key=os.environ.get("HF_API_TOKEN"))
 
-# --- CONFIGURATION ---
-# Replace with your actual key from aistudio.google.com
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# 2. HELPER: CONVERT IMAGE TO BASE64
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
+# 3. THE AI FUNCTION (HUGGING FACE)
 def get_ai_roast(image_path):
-    """Sends image to Gemini and robustly parses the JSON."""
-    model = genai.GenerativeModel('gemini-flash-latest')
-    myfile = genai.upload_file(image_path)
-    
-    prompt = """
-    Analyze this music playlist/profile screenshot. 
-    Return a raw JSON object with exactly these 4 keys:
-    1. "score": A number out of 10 (e.g., "3/10").
-    2. "title": A mean 3-word title for this user (e.g., "Sad Boy Hours").
-    3. "roast": A 2-sentence ruthless roast of their taste.
-    4. "red_flag": One specific "Red Flag" observation.
-    
-    IMPORTANT: Return ONLY the JSON. No markdown formatting, no backticks, no intro text.
-    """
-    
     try:
-        response = model.generate_content([myfile, prompt])
-        raw_text = response.text
+        base64_image = encode_image(image_path)
         
-        # DEBUG: Print what the AI actually sent (Check your terminal!)
-        print(f"--- RAW AI RESPONSE ---\n{raw_text}\n-----------------------")
+        # Hugging Face Chat Format
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                    },
+                    {
+                        "type": "text",
+                        "text": "You are a mean music critic. Analyze this playlist. Return a VALID JSON object with exactly these 4 keys: score, title, roast, red_flag. Do NOT use markdown code blocks."
+                    }
+                ]
+            }
+        ]
 
-        # FIX: Use Regex to find the JSON object { ... }
-        match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-        if match:
-            clean_json = match.group(0)
-            return json.loads(clean_json)
-        else:
-            raise ValueError("No JSON found in response")
+        # Call the API
+        completion = client.chat.completions.create(
+            model=repo_id, 
+            messages=messages, 
+            max_tokens=500,
+            temperature=0.7,
+            response_format={"type": "json_object"} # Forces JSON
+        )
+
+        response_text = completion.choices[0].message.content
+        return json.loads(response_text)
 
     except Exception as e:
-        print(f"ERROR: {e}") # Print error to terminal
-        return {
-            "score": "?/10", 
-            "title": "Parsing Error", 
-            "roast": "The AI is confused. Check your terminal to see why.", 
-            "red_flag": "Code issue."
-        }
+        print(f"HUGGING FACE ERROR: {e}")
+        return None
+
+# 4. WEB ROUTES
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     data = None
     if request.method == 'POST':
-        file = request.files.get('file')
-        if file and file.filename != '':
+        if 'file' not in request.files: return render_template('index.html', data=None)
+        file = request.files['file']
+        if file.filename == '': return render_template('index.html', data=None)
+        
+        if file:
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
-            # Get the structured roast
             data = get_ai_roast(filepath)
             
-            # Clean up file immediately (Privacy)
-            os.remove(filepath)
-            
+            if not data:
+                data = {
+                    "score": "Error", 
+                    "title": "Server Busy", 
+                    "roast": "The free AI server is busy. Please try again in 1 minute.", 
+                    "red_flag": "Rate Limit"
+                }
+
     return render_template('index.html', data=data)
 
 if __name__ == '__main__':
